@@ -6,6 +6,9 @@ how far the current 4H candle has progressed without switching tabs.
 
 ![platform](https://img.shields.io/badge/platform-macOS-lightgrey) ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 
+**[⬇ Download the latest .app](../../releases/latest)** — no Python or building required, just
+unzip and drag into Applications.
+
 <img src="assets/clock-basic.png" alt="TradeTime clock overlay" width="420">
 
 ## Features
@@ -81,7 +84,10 @@ is set.
 
 ## Build a standalone .app
 
-To get a double-clickable app instead of running from the terminal:
+Don't want to build it yourself? Grab the pre-built app from
+**[Releases](../../releases/latest)** instead and skip everything below.
+
+To build it yourself and get a double-clickable app instead of running from the terminal:
 
 ```bash
 pip3 install -r requirements.txt   # includes pyinstaller
@@ -116,6 +122,7 @@ All settings live under the menu bar icon:
 | Add an alarm | Menu bar icon → `Alarms` → `+ Add Alarm...` → enter `HH:MM` → choose `Repeat Daily` or `Once` |
 | Edit/delete an alarm | Menu bar icon → `Alarms` → pick the alarm → `Edit Time/Repeat` or `Delete` |
 | Toggle Market Events / Breaking News | Menu bar icon → `Market Events` → `Economic Events` / `Breaking News` |
+| Set your FRED / Finnhub API key | Menu bar icon → `Market Events` → `Set FRED API Key...` / `Set Finnhub API Key...` |
 | Quit | Menu bar icon → `Quit` |
 
 ## macOS notification permission
@@ -157,42 +164,44 @@ Most tunable values live as constants near the top of `main.py`:
 ## Setting up API keys
 
 Market Events uses the [FRED API](https://fred.stlouisfed.org/docs/api/fred/) and Breaking News
-uses the [Finnhub API](https://finnhub.io/docs/api). Both have free tiers, and `main.py` reads
-both keys from environment variables (`FRED_API_KEY`, `FINNHUB_API_KEY`) — no key is stored in
-the source code, so it's safe to keep this repo public.
+uses the [Finnhub API](https://finnhub.io/docs/api). Both have free tiers, and no key is ever
+stored in the source code, so it's safe to keep this repo public.
 
 Both keys are optional. Without them, TradeTime runs completely normally — the clock, candle
-timer, and alarms are unaffected — only the Market Events / Breaking News toggles stay inactive
-(and print a one-line notice in the console) until a key is provided.
+timer, and alarms are unaffected — only the Market Events / Breaking News toggles stay off (and
+show a one-time reminder) until a key is provided.
+
+**Option A — from the app menu (works for everyone, including a downloaded `.app`):**
 
 1. Get a free key:
    - FRED: [fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)
    - Finnhub: [finnhub.io/register](https://finnhub.io/register)
-2. Set them as environment variables before launching the app:
+2. Menu bar icon → `Market Events` → `Set FRED API Key...` / `Set Finnhub API Key...` → paste it
+   in and confirm.
+3. Turn on `Market Events` → `Economic Events` / `Breaking News`.
 
-   ```bash
-   export FRED_API_KEY="your-fred-api-key"
-   export FINNHUB_API_KEY="your-finnhub-api-key"
-   ```
+The key is saved locally to `~/.bitcoin_candle_clock_config.json` (same file as your other
+settings) and remembered across restarts. If you try to enable either feature before setting a
+key, TradeTime tells you exactly where to get one.
 
-   To make this permanent, add those two lines to your shell profile (`~/.zshrc` on modern
-   macOS) instead of typing them every time.
+**Option B — environment variables (source runs only):**
 
-> **Packaging as a .app:** a GUI app launched by double-clicking in Finder does **not** inherit
-> environment variables from your shell profile — only apps launched from a terminal do. If you
-> build a `.app` with PyInstaller and plan to open it by double-clicking, either launch it from
-> Terminal (`open /Applications/TradeTime.app`) after `export`-ing the keys in that same shell
-> session, register them once with `launchctl setenv FRED_API_KEY "..."` /
-> `launchctl setenv FINNHUB_API_KEY "..."` (session-wide, survives Finder launches), or keep a
-> separate local copy of `main.py` with the keys filled in directly for your own personal build
-> (just don't commit that copy).
+```bash
+export FRED_API_KEY="your-fred-api-key"
+export FINNHUB_API_KEY="your-finnhub-api-key"
+python3 main.py
+```
+
+> A GUI app launched by double-clicking in Finder does **not** inherit environment variables
+> from your shell profile — only apps launched from a terminal do. So if you build a `.app` with
+> PyInstaller, environment variables generally won't reach it; use Option A (the menu) instead.
 
 > **Sharing your built .app with many people:** if you plan to distribute a build with your own
-> keys baked in, keep in mind Finnhub's free tier caps out at 60 requests/minute total across
-> everyone using that key — this app already uses ~12 requests/minute per running instance, so
-> more than a handful of simultaneous users will start hitting rate limits. FRED's free tier
-> (120 requests/minute) has much more headroom for shared use. For any wider distribution, it's
-> best for each user to grab their own free key instead of sharing one.
+> keys baked in via Option B, keep in mind Finnhub's free tier caps out at 60 requests/minute
+> total across everyone using that key — this app already uses ~12 requests/minute per running
+> instance, so more than a handful of simultaneous users will start hitting rate limits. FRED's
+> free tier (120 requests/minute) has much more headroom. For wider distribution, it's best to
+> ship the `.app` with no keys baked in and let each person add their own via Option A.
 
 ## Known limitations
 
