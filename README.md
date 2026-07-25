@@ -206,5 +206,5 @@ If TradeTime is useful for your trading, you can support development from the ap
 
 ## License
 
-No license has been set yet — add one (e.g. MIT) before publishing if you want to make reuse
-terms explicit.
+[MIT](LICENSE) — free to use, modify, and redistribute, including commercially, as long as the
+original copyright notice is kept.
