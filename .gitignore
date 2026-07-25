@@ -1,0 +1,17 @@
+# PyInstaller build output (rebuild locally with `pyinstaller TradeTime.spec`)
+dist/
+build/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Local environment / secrets (if you ever keep a local .env instead of shell env vars)
+.env
