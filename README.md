@@ -1,8 +1,8 @@
 # TradeTime
 
 A lightweight always-on-top clock overlay for crypto/futures trading. It sits on top of your
-trading window and shows the real time plus a 4-hour candle progress bar, so you always know
-how far the current 4H candle has progressed without switching tabs.
+trading window and shows the real time plus a 4-segment gauge that lets you read both the
+1-hour candle and the 4-hour candle's progress at a glance, without switching tabs.
 
 ![platform](https://img.shields.io/badge/platform-macOS-lightgrey) ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 
@@ -16,9 +16,10 @@ unzip and drag into Applications.
 **Clock & candle timer**
 - Always-on-top window that stays above your trading platform
 - Live clock, down to the second, with a selectable display timezone
-- 4-segment progress bar showing how far the current 4-hour candle has progressed (always
-  calculated in UTC, independent of the display timezone — matches exchange kline close times:
-  UTC 00:00 / 04:00 / 08:00 / 12:00 / 16:00 / 20:00)
+- 4-segment gauge that shows two timeframes at once: each segment fills up over one hour (so
+  you can see the current 1H candle's progress), and all four together track the full 4-hour
+  candle (always calculated in UTC, independent of the display timezone — matches exchange
+  kline close times: UTC 00:00 / 04:00 / 08:00 / 12:00 / 16:00 / 20:00)
 - Adjustable size, opacity, clock font weight (Ultralight–Black), and alert color
 - Draggable — click and drag the box anywhere on screen
 
