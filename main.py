@@ -289,6 +289,8 @@ def load_config():
         "reminder_minutes": DEFAULT_REMINDER_MINUTES,
         "market_events_enabled": False,
         "breaking_news_enabled": False,
+        "fred_api_key": "",
+        "finnhub_api_key": "",
     }
     try:
         with open(CONFIG_PATH, "r") as f:
@@ -1032,6 +1034,12 @@ class ClockWindow(QWidget):
         self.opacity = cfg["opacity"]
         self._drag_pos = None
 
+        # API 키 우선순위: 메뉴에서 직접 입력해서 config에 저장해둔 값이 있으면 그걸 쓰고,
+        # 없으면 환경변수(FRED_API_KEY / FINNHUB_API_KEY) 값을 기본으로 씀.
+        # (.app으로 배포받은 사람은 보통 환경변수가 없으니, 메뉴 > Market Events에서 직접 입력하면 됨)
+        self.fred_api_key = cfg.get("fred_api_key", "") or FRED_API_KEY
+        self.finnhub_api_key = cfg.get("finnhub_api_key", "") or FINNHUB_API_KEY
+
         self.setWindowFlags(
             Qt.FramelessWindowHint
             | Qt.WindowStaysOnTopHint
@@ -1051,7 +1059,7 @@ class ClockWindow(QWidget):
         # _sync_events_layout()이 레이아웃에 넣고 빼서, 꺼져있을 때 유령 간격이 생기지 않게 함
         # (우선순위: Breaking News가 위, Market Events가 아래)
         self.events_panel = MarketEventsPanel()
-        self.breaking_news_manager = BreakingNewsManager(FINNHUB_API_KEY, BREAKING_NEWS_KEYWORDS, NEWS_CATEGORIES)
+        self.breaking_news_manager = BreakingNewsManager(self.finnhub_api_key, BREAKING_NEWS_KEYWORDS, NEWS_CATEGORIES)
         self.breaking_news_panel = BreakingNewsPanel(self.breaking_news_manager)
         self.breaking_news_manager.changed.connect(self._on_news_changed)
 
@@ -1080,7 +1088,7 @@ class ClockWindow(QWidget):
         # Market Events는 display_tz가 이미 만들어진 뒤에 초기화해야 함
         # (켜는 순간 changed 신호가 바로 발생해서 _refresh_events_panel이 display_tz를 참조하기 때문)
         self.market_events_enabled = cfg.get("market_events_enabled", False)
-        self.events_manager = MarketEventsManager(FRED_API_KEY)
+        self.events_manager = MarketEventsManager(self.fred_api_key)
         self.events_manager.changed.connect(self._refresh_events_panel)
         self.events_manager.set_enabled(self.market_events_enabled)
 
@@ -1253,7 +1261,23 @@ class ClockWindow(QWidget):
             "reminder_minutes": self.reminder_minutes,
             "market_events_enabled": self.market_events_enabled,
             "breaking_news_enabled": self.breaking_news_enabled,
+            "fred_api_key": self.fred_api_key,
+            "finnhub_api_key": self.finnhub_api_key,
         })
+
+    def set_fred_api_key(self, key):
+        """메뉴(Market Events > Set FRED API Key...)에서 직접 입력한 키를 적용하고 config에 저장."""
+        self.fred_api_key = key
+        self.events_manager.api_key = key
+        self.events_manager._warned_no_key = False  # 키를 새로 넣었으니 다음에 비어있어도 다시 경고 가능하게
+        self.save_settings()
+
+    def set_finnhub_api_key(self, key):
+        """메뉴(Market Events > Set Finnhub API Key...)에서 직접 입력한 키를 적용하고 config에 저장."""
+        self.finnhub_api_key = key
+        self.breaking_news_manager.api_key = key
+        self.breaking_news_manager._warned_no_key = False
+        self.save_settings()
 
     def set_market_events_enabled(self, enabled):
         self.market_events_enabled = enabled
@@ -2801,13 +2825,65 @@ def build_tray(app, window: ClockWindow):
 
     econ_action = QAction("Economic Events", events_menu, checkable=True)
     econ_action.setChecked(window.market_events_enabled)
-    econ_action.triggered.connect(lambda checked: window.set_market_events_enabled(checked))
+
+    def toggle_economic_events(checked):
+        if checked and not window.fred_api_key:
+            econ_action.setChecked(False)
+            show_info(
+                "Economic Events needs a free FRED API key.\n\n"
+                "1) Get one at fred.stlouisfed.org/docs/api/api_key.html\n"
+                "2) Market Events → \"Set FRED API Key...\" → paste it in"
+            )
+            return
+        window.set_market_events_enabled(checked)
+
+    econ_action.triggered.connect(toggle_economic_events)
     events_menu.addAction(econ_action)
 
     news_action = QAction("Breaking News", events_menu, checkable=True)
     news_action.setChecked(window.breaking_news_enabled)
-    news_action.triggered.connect(lambda checked: window.set_breaking_news_enabled(checked))
+
+    def toggle_breaking_news(checked):
+        if checked and not window.finnhub_api_key:
+            news_action.setChecked(False)
+            show_info(
+                "Breaking News needs a free Finnhub API key.\n\n"
+                "1) Get one at finnhub.io/register\n"
+                "2) Market Events → \"Set Finnhub API Key...\" → paste it in"
+            )
+            return
+        window.set_breaking_news_enabled(checked)
+
+    news_action.triggered.connect(toggle_breaking_news)
     events_menu.addAction(news_action)
+
+    events_menu.addSeparator()
+
+    def prompt_fred_key():
+        text, ok = get_text_input(
+            "FRED API Key",
+            "Paste your free FRED API key\n(get one at fred.stlouisfed.org/docs/api/api_key.html):",
+            default_text=window.fred_api_key,
+        )
+        if ok:
+            window.set_fred_api_key(text.strip())
+
+    set_fred_key_action = QAction("Set FRED API Key...", events_menu)
+    set_fred_key_action.triggered.connect(prompt_fred_key)
+    events_menu.addAction(set_fred_key_action)
+
+    def prompt_finnhub_key():
+        text, ok = get_text_input(
+            "Finnhub API Key",
+            "Paste your free Finnhub API key\n(get one at finnhub.io/register):",
+            default_text=window.finnhub_api_key,
+        )
+        if ok:
+            window.set_finnhub_api_key(text.strip())
+
+    set_finnhub_key_action = QAction("Set Finnhub API Key...", events_menu)
+    set_finnhub_key_action.triggered.connect(prompt_finnhub_key)
+    events_menu.addAction(set_finnhub_key_action)
 
     menu.addSeparator()
 
